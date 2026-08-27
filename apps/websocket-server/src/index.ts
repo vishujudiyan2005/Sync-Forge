@@ -38,18 +38,40 @@ function generateRoomId(): string {
 }
 
 /**
+ * Shared HTTP request handler.
+ *
+ * IMPORTANT: Render's port scanner (and any uptime/health check)
+ * sends a plain HTTP request to the service on boot. If the request
+ * handler never calls res.end() for that path, the connection just
+ * hangs open with no response, and the scanner will report
+ * "No open HTTP ports detected" even though the server is actually
+ * listening. Every path must resolve with a response — not just
+ * "/health".
+ */
+function createRequestHandler() {
+    return (req: http.IncomingMessage, res: http.ServerResponse) => {
+        if (req.url === "/health") {
+            res.writeHead(200, { "Content-Type": "text/plain" });
+            res.end("OK");
+            return;
+        }
+
+        // Default handler: respond to everything else (including "/",
+        // which is what naive port/health scanners hit first) so the
+        // connection never hangs open without a response.
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.end("OK");
+    };
+}
+
+/**
  * Start the dedicated Yjs WebSocket server.
  *
  * On Render, this service will listen on the PORT
  * provided by Render automatically.
  */
 function startYjsServer() {
-    const yjsServer = http.createServer((req, res) => {
-        if (req.url === "/health") {
-            res.writeHead(200);
-            res.end("OK");
-        }
-    });
+    const yjsServer = http.createServer(createRequestHandler());
 
     const yjsWss = new WebSocketServer({
         server: yjsServer,
@@ -66,12 +88,7 @@ function startYjsServer() {
  * Start the main WebSocket server.
  */
 async function startMainServer() {
-    const server = http.createServer((req, res) => {
-        if (req.url === "/health") {
-            res.writeHead(200);
-            res.end("OK");
-        }
-    });
+    const server = http.createServer(createRequestHandler());
 
     const wss = new WebSocketServer({
         server,
