@@ -44,7 +44,12 @@ function generateRoomId(): string {
  * provided by Render automatically.
  */
 function startYjsServer() {
-    const yjsServer = http.createServer();
+    const yjsServer = http.createServer((req, res) => {
+        if (req.url === "/health") {
+            res.writeHead(200);
+            res.end("OK");
+        }
+    });
 
     const yjsWss = new WebSocketServer({
         server: yjsServer,
@@ -61,7 +66,12 @@ function startYjsServer() {
  * Start the main WebSocket server.
  */
 async function startMainServer() {
-    const server = http.createServer();
+    const server = http.createServer((req, res) => {
+        if (req.url === "/health") {
+            res.writeHead(200);
+            res.end("OK");
+        }
+    });
 
     const wss = new WebSocketServer({
         server,
